@@ -1,0 +1,21 @@
+# Documentation and Project Explanation files
+*.md
+*.txt
+
+# Python scripts and bytecode
+*.py
+__pycache__/
+*.pyc
+
+# Maven build outputs and binaries
+target/
+*.class
+*.jar
+
+# IDE and Editor configurations
+.idea/
+*.iml
+.vscode/
+*.swp
+*~
+.DS_Store
