@@ -62,7 +62,7 @@ public class RegisterFrame extends JFrame {
         gbc.gridx = 1; gbc.gridy = 3; panel.add(emailField, gbc);
 
         // Phone
-        gbc.gridx = 0; gbc.gridy = 4; panel.add(new JLabel("Phone:"), gbc);
+        gbc.gridx = 0; gbc.gridy = 4; panel.add(new JLabel("Phone (starts with 9876):"), gbc);
         phoneField = new JTextField(18);
         gbc.gridx = 1; gbc.gridy = 4; panel.add(phoneField, gbc);
 

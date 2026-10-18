@@ -55,6 +55,10 @@ public class AuthService {
             throw new ValidationException("An account with this email already exists.");
         }
 
+        if (userDAO.findByPhone(phone.trim()).isPresent()) {
+            throw new ValidationException("An account with this phone number already exists.");
+        }
+
         String passwordHash = PasswordHasher.hashPassword(password);
 
         User newUser = new User();
@@ -74,7 +78,12 @@ public class AuthService {
         if (firstName == null || firstName.trim().isEmpty()) throw new ValidationException("First name is required.");
         if (lastName == null || lastName.trim().isEmpty()) throw new ValidationException("Last name is required.");
         if (email == null || !email.matches("^[A-Za-z0-9+_.-]+@(.+)$")) throw new ValidationException("Valid email is required.");
-        if (phone == null || phone.trim().length() < 10) throw new ValidationException("Valid phone number is required.");
+        if (phone == null || !phone.trim().matches("9876[0-9]{6}")) {
+            throw new ValidationException("Phone number must be a 10-digit Indian mobile number starting with 9/8/7/6.");
+        }
         if (password == null || password.length() < 6) throw new ValidationException("Password must be at least 6 characters.");
     }
 }
+
+
+

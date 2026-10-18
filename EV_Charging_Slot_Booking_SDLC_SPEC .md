@@ -166,7 +166,7 @@ The system shall allow a new customer to register with:
 Rules:
 
 - email must be unique;
-- phone must be unique;
+- phone must be unique and contain exactly 10 digits, starting with `9876`;
 - password is never stored as plaintext;
 - new customer role is `CUSTOMER`;
 - new customer status is `ACTIVE`.

@@ -24,6 +24,20 @@ public class UserDAO {
         return Optional.empty();
     }
 
+    public Optional<User> findByPhone(String phone) throws SQLException {
+        String sql = "SELECT * FROM users WHERE phone = ?";
+        try (Connection conn = DBConnection.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, phone);
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    return Optional.of(mapResultSetToUser(rs));
+                }
+            }
+        }
+        return Optional.empty();
+    }
+
     public User createUser(User user) throws SQLException {
         String sql = "INSERT INTO users (first_name, last_name, email, phone, password_hash, role, status) " +
                      "VALUES (?, ?, ?, ?, ?, ?, ?)";
