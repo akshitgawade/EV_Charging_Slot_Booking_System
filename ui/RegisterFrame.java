@@ -1,16 +1,15 @@
 package com.evcharging.ui;
 
-import com.evcharging.exception.ValidationException;
+import com.evcharging.action.ActionResult;
+import com.evcharging.action.RegisterAction;
+import com.evcharging.manager.AppManager;
 import com.evcharging.model.User;
-import com.evcharging.service.AuthService;
 
 import javax.swing.*;
 import java.awt.*;
-import java.sql.SQLException;
 
 public class RegisterFrame extends JFrame {
 
-    private final AuthService authService;
     private final JFrame parentFrame;
 
     private JTextField firstNameField;
@@ -21,7 +20,6 @@ public class RegisterFrame extends JFrame {
     private JPasswordField confirmPasswordField;
 
     public RegisterFrame(JFrame parentFrame) {
-        this.authService = new AuthService();
         this.parentFrame = parentFrame;
         initComponents();
     }
@@ -46,37 +44,30 @@ public class RegisterFrame extends JFrame {
 
         gbc.gridwidth = 1;
 
-        // First Name
         gbc.gridx = 0; gbc.gridy = 1; panel.add(new JLabel("First Name:"), gbc);
         firstNameField = new JTextField(18);
         gbc.gridx = 1; gbc.gridy = 1; panel.add(firstNameField, gbc);
 
-        // Last Name
         gbc.gridx = 0; gbc.gridy = 2; panel.add(new JLabel("Last Name:"), gbc);
         lastNameField = new JTextField(18);
         gbc.gridx = 1; gbc.gridy = 2; panel.add(lastNameField, gbc);
 
-        // Email
         gbc.gridx = 0; gbc.gridy = 3; panel.add(new JLabel("Email:"), gbc);
         emailField = new JTextField(18);
         gbc.gridx = 1; gbc.gridy = 3; panel.add(emailField, gbc);
 
-        // Phone
-        gbc.gridx = 0; gbc.gridy = 4; panel.add(new JLabel("Phone (starts with 9876):"), gbc);
+        gbc.gridx = 0; gbc.gridy = 4; panel.add(new JLabel("Phone (10 digits):"), gbc);
         phoneField = new JTextField(18);
         gbc.gridx = 1; gbc.gridy = 4; panel.add(phoneField, gbc);
 
-        // Password
         gbc.gridx = 0; gbc.gridy = 5; panel.add(new JLabel("Password:"), gbc);
         passwordField = new JPasswordField(18);
         gbc.gridx = 1; gbc.gridy = 5; panel.add(passwordField, gbc);
 
-        // Confirm Password
         gbc.gridx = 0; gbc.gridy = 6; panel.add(new JLabel("Confirm Password:"), gbc);
         confirmPasswordField = new JPasswordField(18);
         gbc.gridx = 1; gbc.gridy = 6; panel.add(confirmPasswordField, gbc);
 
-        // Buttons
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 0));
         JButton registerButton = new JButton("Register");
         JButton backButton = new JButton("Back to Login");
@@ -106,17 +97,15 @@ public class RegisterFrame extends JFrame {
             return;
         }
 
-        try {
-            User newUser = authService.registerCustomer(firstName, lastName, email, phone, password);
-            JOptionPane.showMessageDialog(this, "Registration successful! You can now log in.", 
+        RegisterAction action = new RegisterAction(firstName, lastName, email, phone, password);
+        ActionResult<User> result = AppManager.getInstance().executeAction(action);
+
+        if (result.isSuccess()) {
+            JOptionPane.showMessageDialog(this, "Registration successful! You can now log in.",
                     "Success", JOptionPane.INFORMATION_MESSAGE);
             backToLogin();
-
-        } catch (ValidationException e) {
-            JOptionPane.showMessageDialog(this, e.getMessage(), "Validation Error", JOptionPane.ERROR_MESSAGE);
-        } catch (SQLException e) {
-            JOptionPane.showMessageDialog(this, "Database error during registration: " + e.getMessage(), 
-                    "Database Error", JOptionPane.ERROR_MESSAGE);
+        } else {
+            JOptionPane.showMessageDialog(this, result.getMessage(), "Registration Error", JOptionPane.ERROR_MESSAGE);
         }
     }
 

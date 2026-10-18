@@ -46,7 +46,7 @@ public class AuthService {
         return user;
     }
 
-    public User registerCustomer(String firstName, String lastName, String email, String phone, String password) 
+    public User registerCustomer(String firstName, String lastName, String email, String phone, String password)
             throws ValidationException, SQLException {
 
         validateRegistrationFields(firstName, lastName, email, phone, password);
@@ -73,17 +73,14 @@ public class AuthService {
         return userDAO.createUser(newUser);
     }
 
-    private void validateRegistrationFields(String firstName, String lastName, String email, String phone, String password) 
+    private void validateRegistrationFields(String firstName, String lastName, String email, String phone, String password)
             throws ValidationException {
         if (firstName == null || firstName.trim().isEmpty()) throw new ValidationException("First name is required.");
         if (lastName == null || lastName.trim().isEmpty()) throw new ValidationException("Last name is required.");
         if (email == null || !email.matches("^[A-Za-z0-9+_.-]+@(.+)$")) throw new ValidationException("Valid email is required.");
-        if (phone == null || !phone.trim().matches("9876[0-9]{6}")) {
-            throw new ValidationException("Phone number must be a 10-digit Indian mobile number starting with 9/8/7/6.");
+        if (phone == null || !phone.trim().matches("(\\+91)?[6-9][0-9]{9}")) {
+            throw new ValidationException("Phone number must be a 10-digit Indian mobile number starting with 9/8/7/6 (e.g., 9876543210 or +919876543210).");
         }
         if (password == null || password.length() < 6) throw new ValidationException("Password must be at least 6 characters.");
     }
 }
-
-
-

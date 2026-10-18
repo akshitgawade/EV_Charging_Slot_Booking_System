@@ -1,20 +1,15 @@
 package com.evcharging.ui;
 
-import com.evcharging.dao.BookingDAO;
-import com.evcharging.dao.SlotDAO;
-import com.evcharging.dao.StationDAO;
-import com.evcharging.exception.BookingConflictException;
-import com.evcharging.exception.ValidationException;
+import com.evcharging.action.*;
+import com.evcharging.manager.AppManager;
+import com.evcharging.model.Booking;
 import com.evcharging.model.ChargingSlot;
 import com.evcharging.model.EVStation;
 import com.evcharging.model.User;
-import com.evcharging.service.BookingService;
-import com.evcharging.util.DBConnection;
 
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
-import java.sql.*;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -22,9 +17,6 @@ import java.util.List;
 public class CustomerDashboardFrame extends JFrame {
 
     private final User currentUser;
-    private final StationDAO stationDAO;
-    private final SlotDAO slotDAO;
-    private final BookingService bookingService;
 
     private JTable stationTable;
     private DefaultTableModel stationTableModel;
@@ -35,13 +27,10 @@ public class CustomerDashboardFrame extends JFrame {
 
     private JTextField searchField;
     private JTextField cityField;
-    private JTextField bookingTimeField; // Format: YYYY-MM-DD HH:00
+    private JTextField bookingTimeField;
 
     public CustomerDashboardFrame(User user) {
         this.currentUser = user;
-        this.stationDAO = new StationDAO();
-        this.slotDAO = new SlotDAO();
-        this.bookingService = new BookingService();
         initComponents();
         loadStations();
         loadBookingHistory();
@@ -55,11 +44,9 @@ public class CustomerDashboardFrame extends JFrame {
 
         JTabbedPane tabbedPane = new JTabbedPane();
 
-        // TAB 1: Search & Book
         JPanel bookingPanel = new JPanel(new BorderLayout(10, 10));
         bookingPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
-        // Search Bar
         JPanel searchPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5));
         searchPanel.add(new JLabel("Station Name:"));
         searchField = new JTextField(12);
@@ -73,18 +60,15 @@ public class CustomerDashboardFrame extends JFrame {
         searchPanel.add(searchButton);
         bookingPanel.add(searchPanel, BorderLayout.NORTH);
 
-        // Center Tables Split Pane
         JSplitPane splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT);
         splitPane.setResizeWeight(0.5);
 
-        // Station Table
         stationTableModel = new DefaultTableModel(new String[]{"ID", "Station Name", "Address", "City", "Hours"}, 0) {
             @Override public boolean isCellEditable(int row, int col) { return false; }
         };
         stationTable = new JTable(stationTableModel);
         splitPane.setTopComponent(new JScrollPane(stationTable));
 
-        // Slot Table
         slotTableModel = new DefaultTableModel(new String[]{"Slot ID", "Slot #", "Connector", "Power (kW)", "Rate/Hr (₹)", "Status"}, 0) {
             @Override public boolean isCellEditable(int row, int col) { return false; }
         };
@@ -93,7 +77,6 @@ public class CustomerDashboardFrame extends JFrame {
 
         bookingPanel.add(splitPane, BorderLayout.CENTER);
 
-        // Booking Action Panel
         JPanel actionPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 5));
         actionPanel.add(new JLabel("Start Time (YYYY-MM-DD HH:00):"));
         bookingTimeField = new JTextField(15);
@@ -106,7 +89,6 @@ public class CustomerDashboardFrame extends JFrame {
 
         tabbedPane.addTab("Find & Book Charger", bookingPanel);
 
-        // TAB 2: Booking History
         JPanel historyPanel = new JPanel(new BorderLayout(10, 10));
         historyPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
@@ -125,7 +107,6 @@ public class CustomerDashboardFrame extends JFrame {
 
         tabbedPane.addTab("My Bookings History", historyPanel);
 
-        // Event Listeners
         searchButton.addActionListener(e -> loadStations());
 
         stationTable.getSelectionModel().addListSelectionListener(e -> {
@@ -143,32 +124,38 @@ public class CustomerDashboardFrame extends JFrame {
     }
 
     private void loadStations() {
-        try {
-            stationTableModel.setRowCount(0);
-            List<EVStation> stations = stationDAO.findActiveStations(searchField.getText(), cityField.getText());
-            for (EVStation s : stations) {
+        stationTableModel.setRowCount(0);
+
+        ActionResult<List<EVStation>> result = AppManager.getInstance()
+                .executeAction(new SearchStationsAction(searchField.getText(), cityField.getText()));
+
+        if (result.isSuccess()) {
+            for (EVStation s : result.getData()) {
                 stationTableModel.addRow(new Object[]{
                         s.getStationId(), s.getStationName(), s.getAddress(), s.getCity(),
                         s.getOpeningTime() + " - " + s.getClosingTime()
                 });
             }
-        } catch (SQLException e) {
-            JOptionPane.showMessageDialog(this, "Error fetching stations: " + e.getMessage(), "Database Error", JOptionPane.ERROR_MESSAGE);
+        } else {
+            JOptionPane.showMessageDialog(this, result.getMessage(), "Error Fetching Stations", JOptionPane.ERROR_MESSAGE);
         }
     }
 
     private void loadSlotsForStation(Long stationId) {
-        try {
-            slotTableModel.setRowCount(0);
-            List<ChargingSlot> slots = slotDAO.findByStation(stationId);
-            for (ChargingSlot slot : slots) {
+        slotTableModel.setRowCount(0);
+
+        ActionResult<List<ChargingSlot>> result = AppManager.getInstance()
+                .executeAction(new LoadStationSlotsAction(stationId));
+
+        if (result.isSuccess()) {
+            for (ChargingSlot slot : result.getData()) {
                 slotTableModel.addRow(new Object[]{
                         slot.getSlotId(), slot.getSlotNumber(), slot.getConnectorType(),
                         slot.getMaxPowerKw(), slot.getHourlyRate(), slot.getStatus()
                 });
             }
-        } catch (SQLException e) {
-            JOptionPane.showMessageDialog(this, "Error fetching slots: " + e.getMessage(), "Database Error", JOptionPane.ERROR_MESSAGE);
+        } else {
+            JOptionPane.showMessageDialog(this, result.getMessage(), "Error Fetching Slots", JOptionPane.ERROR_MESSAGE);
         }
     }
 
@@ -185,49 +172,44 @@ public class CustomerDashboardFrame extends JFrame {
             DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
             String timeText = bookingTimeField.getText().trim();
             if (!timeText.contains(":")) timeText += ":00";
-            
+
             LocalDateTime startTime = LocalDateTime.parse(timeText, formatter);
 
-            Long bookingId = bookingService.createBooking(currentUser.getUserId(), slotId, startTime);
-            JOptionPane.showMessageDialog(this, "Booking confirmed successfully! Booking ID: " + bookingId, "Success", JOptionPane.INFORMATION_MESSAGE);
-            
-            loadBookingHistory();
+            ActionResult<Long> result = AppManager.getInstance()
+                    .executeAction(new BookSlotAction(currentUser.getUserId(), slotId, startTime));
 
-        } catch (ValidationException | BookingConflictException e) {
-            JOptionPane.showMessageDialog(this, e.getMessage(), "Booking Failed", JOptionPane.ERROR_MESSAGE);
+            if (result.isSuccess()) {
+                JOptionPane.showMessageDialog(this, result.getMessage(), "Success", JOptionPane.INFORMATION_MESSAGE);
+                loadBookingHistory();
+            } else {
+                JOptionPane.showMessageDialog(this, result.getMessage(), "Booking Failed", JOptionPane.ERROR_MESSAGE);
+            }
+
         } catch (Exception e) {
             JOptionPane.showMessageDialog(this, "Invalid date/time format. Please use 'YYYY-MM-DD HH:00'.", "Input Error", JOptionPane.ERROR_MESSAGE);
         }
     }
 
     private void loadBookingHistory() {
-        try {
-            historyTableModel.setRowCount(0);
-            String sql = "SELECT b.booking_id, es.station_name, cs.slot_number, b.start_time, b.end_time, b.rate_per_hour, b.status " +
-                         "FROM bookings b " +
-                         "JOIN charging_slots cs ON cs.slot_id = b.slot_id " +
-                         "JOIN ev_stations es ON es.station_id = cs.station_id " +
-                         "WHERE b.user_id = ? ORDER BY b.start_time DESC";
+        historyTableModel.setRowCount(0);
 
-            try (Connection conn = DBConnection.getConnection();
-                 PreparedStatement stmt = conn.prepareStatement(sql)) {
-                stmt.setLong(1, currentUser.getUserId());
-                try (ResultSet rs = stmt.executeQuery()) {
-                    while (rs.next()) {
-                        historyTableModel.addRow(new Object[]{
-                                rs.getLong("booking_id"),
-                                rs.getString("station_name"),
-                                rs.getInt("slot_number"),
-                                rs.getTimestamp("start_time").toLocalDateTime(),
-                                rs.getTimestamp("end_time").toLocalDateTime(),
-                                rs.getBigDecimal("rate_per_hour"),
-                                rs.getString("status")
-                        });
-                    }
-                }
+        ActionResult<List<Booking>> result = AppManager.getInstance()
+                .executeAction(new LoadBookingHistoryAction(currentUser.getUserId()));
+
+        if (result.isSuccess()) {
+            for (Booking b : result.getData()) {
+                historyTableModel.addRow(new Object[]{
+                        b.getBookingId(),
+                        b.getStationName() != null ? b.getStationName() : "N/A",
+                        b.getSlotNumber() != null ? b.getSlotNumber() : 0,
+                        b.getStartTime(),
+                        b.getEndTime(),
+                        b.getRatePerHour(),
+                        b.getStatus()
+                });
             }
-        } catch (SQLException e) {
-            JOptionPane.showMessageDialog(this, "Error loading history: " + e.getMessage(), "Database Error", JOptionPane.ERROR_MESSAGE);
+        } else {
+            JOptionPane.showMessageDialog(this, result.getMessage(), "Error Loading History", JOptionPane.ERROR_MESSAGE);
         }
     }
 
@@ -239,7 +221,8 @@ public class CustomerDashboardFrame extends JFrame {
         }
 
         Long bookingId = (Long) historyTableModel.getValueAt(selectedRow, 0);
-        String currentStatus = (String) historyTableModel.getValueAt(selectedRow, 6);
+        Object statusObj = historyTableModel.getValueAt(selectedRow, 6);
+        String currentStatus = statusObj != null ? statusObj.toString() : "";
 
         if (!"CONFIRMED".equalsIgnoreCase(currentStatus)) {
             JOptionPane.showMessageDialog(this, "Only CONFIRMED bookings can be cancelled.", "Action Invalid", JOptionPane.WARNING_MESSAGE);
@@ -248,14 +231,15 @@ public class CustomerDashboardFrame extends JFrame {
 
         int confirm = JOptionPane.showConfirmDialog(this, "Are you sure you want to cancel booking #" + bookingId + "?", "Confirm Cancel", JOptionPane.YES_NO_OPTION);
         if (confirm == JOptionPane.YES_OPTION) {
-            try (Connection conn = DBConnection.getConnection();
-                 PreparedStatement stmt = conn.prepareStatement("UPDATE bookings SET status = 'CANCELLED' WHERE booking_id = ?")) {
-                stmt.setLong(1, bookingId);
-                stmt.executeUpdate();
-                JOptionPane.showMessageDialog(this, "Booking cancelled successfully. Payment will be marked as REFUNDED.", "Cancelled", JOptionPane.INFORMATION_MESSAGE);
+
+            ActionResult<Boolean> result = AppManager.getInstance()
+                    .executeAction(new CancelBookingAction(bookingId));
+
+            if (result.isSuccess()) {
+                JOptionPane.showMessageDialog(this, result.getMessage(), "Cancelled", JOptionPane.INFORMATION_MESSAGE);
                 loadBookingHistory();
-            } catch (SQLException e) {
-                JOptionPane.showMessageDialog(this, "Error cancelling booking: " + e.getMessage(), "Database Error", JOptionPane.ERROR_MESSAGE);
+            } else {
+                JOptionPane.showMessageDialog(this, result.getMessage(), "Cancellation Error", JOptionPane.ERROR_MESSAGE);
             }
         }
     }

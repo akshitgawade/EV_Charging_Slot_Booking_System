@@ -1,15 +1,17 @@
 package com.evcharging.ui;
 
-import com.evcharging.dao.StationDAO;
+import com.evcharging.action.ActionResult;
+import com.evcharging.action.GenerateRevenueReportAction;
+import com.evcharging.action.LoadAllStationsAction;
+import com.evcharging.action.UpdateStationStatusAction;
+import com.evcharging.manager.AppManager;
 import com.evcharging.model.EVStation;
 import com.evcharging.model.StationStatus;
 import com.evcharging.model.User;
-import com.evcharging.service.AdminService;
 
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
-import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -17,8 +19,6 @@ import java.util.Map;
 public class AdminDashboardFrame extends JFrame {
 
     private final User adminUser;
-    private final StationDAO stationDAO;
-    private final AdminService adminService;
 
     private JTable adminStationTable;
     private DefaultTableModel adminStationTableModel;
@@ -26,8 +26,6 @@ public class AdminDashboardFrame extends JFrame {
 
     public AdminDashboardFrame(User user) {
         this.adminUser = user;
-        this.stationDAO = new StationDAO();
-        this.adminService = new AdminService();
         initComponents();
         loadAllStations();
     }
@@ -40,7 +38,6 @@ public class AdminDashboardFrame extends JFrame {
 
         JTabbedPane tabbedPane = new JTabbedPane();
 
-        // TAB 1: Station Management
         JPanel stationPanel = new JPanel(new BorderLayout(10, 10));
         stationPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
@@ -62,7 +59,6 @@ public class AdminDashboardFrame extends JFrame {
 
         tabbedPane.addTab("Station Management", stationPanel);
 
-        // TAB 2: Revenue Reports
         JPanel reportPanel = new JPanel(new BorderLayout(10, 10));
         reportPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
@@ -80,7 +76,6 @@ public class AdminDashboardFrame extends JFrame {
 
         tabbedPane.addTab("Revenue Analytics", reportPanel);
 
-        // Listeners
         refreshBtn.addActionListener(e -> loadAllStations());
         activateBtn.addActionListener(e -> updateStatus(StationStatus.ACTIVE));
         maintenanceBtn.addActionListener(e -> updateStatus(StationStatus.MAINTENANCE));
@@ -90,17 +85,19 @@ public class AdminDashboardFrame extends JFrame {
     }
 
     private void loadAllStations() {
-        try {
-            adminStationTableModel.setRowCount(0);
-            List<EVStation> stations = stationDAO.listAllStations();
-            for (EVStation s : stations) {
+        adminStationTableModel.setRowCount(0);
+        ActionResult<List<EVStation>> result = AppManager.getInstance()
+                .executeAction(new LoadAllStationsAction());
+
+        if (result.isSuccess()) {
+            for (EVStation s : result.getData()) {
                 adminStationTableModel.addRow(new Object[]{
                         s.getStationId(), s.getStationName(), s.getCity(),
                         s.getOpeningTime() + " - " + s.getClosingTime(), s.getStatus()
                 });
             }
-        } catch (SQLException e) {
-            JOptionPane.showMessageDialog(this, "Error fetching stations: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+        } else {
+            JOptionPane.showMessageDialog(this, result.getMessage(), "Error Fetching Stations", JOptionPane.ERROR_MESSAGE);
         }
     }
 
@@ -112,12 +109,14 @@ public class AdminDashboardFrame extends JFrame {
         }
 
         Long stationId = (Long) adminStationTableModel.getValueAt(selectedRow, 0);
-        try {
-            adminService.updateStationStatus(stationId, newStatus);
-            JOptionPane.showMessageDialog(this, "Station status updated to " + newStatus, "Success", JOptionPane.INFORMATION_MESSAGE);
+        ActionResult<Boolean> result = AppManager.getInstance()
+                .executeAction(new UpdateStationStatusAction(stationId, newStatus));
+
+        if (result.isSuccess()) {
+            JOptionPane.showMessageDialog(this, result.getMessage(), "Success", JOptionPane.INFORMATION_MESSAGE);
             loadAllStations();
-        } catch (SQLException e) {
-            JOptionPane.showMessageDialog(this, "Error updating status: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+        } else {
+            JOptionPane.showMessageDialog(this, result.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
         }
     }
 
@@ -132,10 +131,12 @@ public class AdminDashboardFrame extends JFrame {
         LocalDateTime fromDate = LocalDateTime.now().minusMonths(6);
         LocalDateTime toDate = LocalDateTime.now().plusDays(1);
 
-        try {
-            Map<String, Object> report = adminService.getStationRevenueReport(stationId, fromDate, toDate);
+        ActionResult<Map<String, Object>> result = AppManager.getInstance()
+                .executeAction(new GenerateRevenueReportAction(stationId, fromDate, toDate));
 
-            if (report.isEmpty()) {
+        if (result.isSuccess()) {
+            Map<String, Object> report = result.getData();
+            if (report == null || report.isEmpty()) {
                 reportTextArea.setText("No data returned for selected station.");
                 return;
             }
@@ -155,9 +156,8 @@ public class AdminDashboardFrame extends JFrame {
             sb.append("====================================================\n");
 
             reportTextArea.setText(sb.toString());
-
-        } catch (SQLException e) {
-            JOptionPane.showMessageDialog(this, "Error executing procedure: " + e.getMessage(), "Database Error", JOptionPane.ERROR_MESSAGE);
+        } else {
+            JOptionPane.showMessageDialog(this, result.getMessage(), "Database Error", JOptionPane.ERROR_MESSAGE);
         }
     }
 }

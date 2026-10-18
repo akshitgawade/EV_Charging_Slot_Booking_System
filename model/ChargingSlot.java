@@ -15,7 +15,6 @@ public class ChargingSlot {
 
     public ChargingSlot() {}
 
-    // Getters and Setters
     public Long getSlotId() { return slotId; }
     public void setSlotId(Long slotId) { this.slotId = slotId; }
     public Long getStationId() { return stationId; }

@@ -16,6 +16,7 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class AdminService {
@@ -41,6 +42,10 @@ public class AdminService {
         return stationDAO.createStation(station);
     }
 
+    public List<EVStation> listAllStations() throws SQLException {
+        return stationDAO.listAllStations();
+    }
+
     public boolean updateStationStatus(Long stationId, StationStatus status) throws SQLException {
         return stationDAO.updateStationStatus(stationId, status);
     }
@@ -62,8 +67,7 @@ public class AdminService {
         return slotDAO.updateSlotStatus(slotId, status);
     }
 
-    // Calls Stored Procedure: sp_station_revenue
-    public Map<String, Object> getStationRevenueReport(Long stationId, LocalDateTime fromDate, LocalDateTime toDate) 
+    public Map<String, Object> getStationRevenueReport(Long stationId, LocalDateTime fromDate, LocalDateTime toDate)
             throws SQLException {
         Map<String, Object> report = new HashMap<>();
         String sql = "{CALL sp_station_revenue(?, ?, ?)}";

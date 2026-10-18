@@ -15,7 +15,7 @@ public class User {
 
     public User() {}
 
-    public User(Long userId, String firstName, String lastName, String email, String phone, 
+    public User(Long userId, String firstName, String lastName, String email, String phone,
                 String passwordHash, UserRole role, UserStatus status, LocalDateTime createdAt) {
         this.userId = userId;
         this.firstName = firstName;
@@ -28,7 +28,6 @@ public class User {
         this.createdAt = createdAt;
     }
 
-    // Getters and Setters
     public Long getUserId() { return userId; }
     public void setUserId(Long userId) { this.userId = userId; }
     public String getFirstName() { return firstName; }
